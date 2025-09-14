@@ -1,0 +1,37 @@
+#include <stdint.h>
+
+// Manually Defined Addresses for STM32F401VE
+#define RCC_BASE_ADDR       0x40023800U
+#define GPIOB_BASE_ADDR     0x40020400U
+#define GPIOC_BASE_ADDR     0x40020800U
+#define SCB_BASE_ADDR       0xE000ED00U
+#define SCB_VTOR_ADDR       (SCB_BASE_ADDR   + 0x08U)
+#define APP_START_ADDRESS   0x08008000U
+#define RCC_AHB1ENR     (*(volatile uint32_t*)(RCC_BASE_ADDR + 0x30U))
+#define GPIOB_MODER     (*(volatile uint32_t*)(GPIOB_BASE_ADDR + 0x00U))
+#define GPIOB_BSRR      (*(volatile uint32_t*)(GPIOB_BASE_ADDR + 0x18U))
+#define GPIOC_MODER     (*(volatile uint32_t*)(GPIOC_BASE_ADDR + 0x00U))
+#define GPIOC_ODR       (*(volatile uint32_t*)(GPIOC_BASE_ADDR + 0x14U))
+#define SCB_VTOR        (*(volatile uint32_t*)SCB_VTOR_ADDR)
+
+// LCD Driver Functions
+void delay_ms(volatile uint32_t ms) { volatile uint32_t count = ms * 1600; while(count--); }
+static void LCD_EnablePulse(void) { GPIOB_BSRR = (1U << 1); delay_ms(1); GPIOB_BSRR = (1U << 17); delay_ms(1); }
+static void LCD_SendCommand(uint8_t cmd) { GPIOB_BSRR = (1U << 16); GPIOC_ODR = (GPIOC_ODR & 0xFF00) | cmd; LCD_EnablePulse(); }
+static void LCD_SendData(uint8_t data) { GPIOB_BSRR = (1U << 0); GPIOC_ODR = (GPIOC_ODR & 0xFF00) | data; LCD_EnablePulse(); }
+void LCD_Init(void) { RCC_AHB1ENR |= (1U << 1) | (1U << 2); GPIOC_MODER = (GPIOC_MODER & 0xFFFF0000) | 0x00005555; GPIOB_MODER = (GPIOB_MODER & 0xFFFFFFF0) | 0x00000005; delay_ms(20); LCD_SendCommand(0x38); LCD_SendCommand(0x0C); LCD_SendCommand(0x06); LCD_SendCommand(0x01); delay_ms(2); }
+void LCD_SetCursor(uint8_t row, uint8_t col) { uint8_t address = (row == 0) ? 0x80 : 0xC0; address += col; LCD_SendCommand(address); }
+void LCD_WriteString(const char* str) { while (*str) { LCD_SendData(*str++); } }
+
+// Main Application Function
+int main(void) {
+    // The bootloader now handles setting the VTOR, so this line is not strictly needed,
+    // but it's good practice for the application to be self-aware.
+    SCB_VTOR = APP_START_ADDRESS;
+
+    LCD_Init();
+    LCD_SetCursor(1, 0);
+    LCD_WriteString("Application!");
+    while(1) {}
+    return 0;
+}
