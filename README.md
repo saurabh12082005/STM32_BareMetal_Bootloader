@@ -83,6 +83,3 @@ After 3 seconds, the second line will be added:
 
 Bootloader...
 Application!
-(Here you should add a screenshot or GIF of your working Proteus simulation!)
-
-[INSERT_SIMULATION_GIF_HERE]
